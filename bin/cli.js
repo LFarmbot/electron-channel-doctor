@@ -201,6 +201,260 @@ program
         console.log(chalk.blue('💡 Edit this file to customize the paths for your project'));
     });
 
+// 🩺 SCRIPT DOCTOR COMMANDS 🩺
+
+program
+    .command('health')
+    .description('🩺 Perform comprehensive code health checkup')
+    .option('-p, --preload <path>', 'path to preload.js file', 'electron/preload.js')
+    .option('-s, --source <pattern>', 'glob pattern for JS source files', '**/*.{js,jsx,ts,tsx}')
+    .option('--css <pattern>', 'glob pattern for CSS files', '**/*.{css,scss,sass}')
+    .option('--html <pattern>', 'glob pattern for HTML files', '**/*.{html,htm}')
+    .option('-v, --verbose', 'show detailed output')
+    .option('--json', 'output as JSON')
+    .action(async (options) => {
+        console.log(chalk.blue('🩺 Script Doctor: Performing comprehensive health checkup...\n'));
+        
+        const doctor = new ChannelDoctor({
+            preloadPath: options.preload,
+            jsPattern: options.source,
+            cssPattern: options.css,
+            htmlPattern: options.html,
+            verbose: options.verbose
+        });
+        
+        try {
+            const healthReport = await doctor.generateHealthReport();
+            
+            if (options.json) {
+                console.log(JSON.stringify(healthReport, null, 2));
+                return;
+            }
+            
+            // Display health score with color coding
+            const scoreColor = healthReport.healthScore >= 90 ? 'green' : 
+                             healthReport.healthScore >= 70 ? 'yellow' : 'red';
+            
+            console.log(chalk[scoreColor](`🏥 Overall Health Score: ${healthReport.healthScore}/100\n`));
+            
+            // Summary
+            console.log(chalk.cyan('📊 Code Health Summary:'));
+            console.log(`   Unused Functions: ${healthReport.summary.unusedFunctions}`);
+            console.log(`   Unused Imports: ${healthReport.summary.unusedImports}`);
+            console.log(`   Unused CSS Classes: ${healthReport.summary.unusedCssClasses}`);
+            console.log(`   Dead Code Paths: ${healthReport.summary.deadCodePaths}`);
+            console.log(`   Duplicate Code Blocks: ${healthReport.summary.duplicateCode}`);
+            console.log(`   Complex Functions: ${healthReport.summary.complexityIssues}`);
+            
+            if (healthReport.channels.success) {
+                console.log(`   Missing IPC Channels: ${healthReport.channels.summary.missingFromWhitelist}`);
+                console.log(`   Unused IPC Channels: ${healthReport.channels.summary.unusedInWhitelist}`);
+            }
+            
+            // Recommendations
+            if (healthReport.recommendations.length > 0) {
+                console.log(chalk.cyan('\n💡 Recommendations:'));
+                healthReport.recommendations.forEach(rec => {
+                    const icon = rec.priority === 'high' ? '🚨' : 
+                               rec.priority === 'medium' ? '⚠️' : '💡';
+                    console.log(`   ${icon} ${rec.message}`);
+                });
+            }
+            
+            // Next steps
+            if (healthReport.nextSteps.length > 0) {
+                console.log(chalk.cyan('\n🎯 Recommended Next Steps:'));
+                healthReport.nextSteps.forEach((step, index) => {
+                    console.log(`   ${index + 1}. ${step.action}`);
+                    console.log(`      Command: ${chalk.gray(step.command)}`);
+                    console.log(`      ${step.description}`);
+                });
+            }
+            
+        } catch (error) {
+            console.error(chalk.red(`❌ Health checkup failed: ${error.message}`));
+            process.exit(1);
+        }
+    });
+
+program
+    .command('surgery')
+    .description('🏥 Perform automated code surgery to remove unused code')
+    .option('-p, --preload <path>', 'path to preload.js file', 'electron/preload.js')
+    .option('-s, --source <pattern>', 'glob pattern for JS source files', '**/*.{js,jsx,ts,tsx}')
+    .option('--css <pattern>', 'glob pattern for CSS files', '**/*.{css,scss,sass}')
+    .option('--html <pattern>', 'glob pattern for HTML files', '**/*.{html,htm}')
+    .option('--no-backup', 'skip creating backup (DANGEROUS!)')
+    .option('--operations <ops>', 'comma-separated list of operations (unused-functions,unused-imports,unused-css-classes,dead-code-paths)')
+    .option('-v, --verbose', 'show detailed output')
+    .option('--dry-run', 'show what would be removed without making changes')
+    .action(async (options) => {
+        if (options.dryRun) {
+            console.log(chalk.yellow('🧪 DRY RUN MODE: No files will be modified\n'));
+        } else {
+            console.log(chalk.blue('🏥 Script Doctor: Preparing for surgical code cleanup...\n'));
+        }
+        
+        const doctor = new ChannelDoctor({
+            preloadPath: options.preload,
+            jsPattern: options.source,
+            cssPattern: options.css,
+            htmlPattern: options.html,
+            verbose: options.verbose
+        });
+        
+        try {
+            const operations = options.operations ? options.operations.split(',') : [];
+            
+            if (options.dryRun) {
+                // Just show the analysis
+                const healthReport = await doctor.performHealthCheckup();
+                
+                console.log(chalk.cyan('🔍 Issues that would be surgically removed:\n'));
+                
+                if (healthReport.summary.unusedFunctions > 0) {
+                    console.log(`🔪 ${healthReport.summary.unusedFunctions} unused functions`);
+                }
+                if (healthReport.summary.unusedImports > 0) {
+                    console.log(`📦 ${healthReport.summary.unusedImports} unused imports`);
+                }
+                if (healthReport.summary.unusedCssClasses > 0) {
+                    console.log(`🎨 ${healthReport.summary.unusedCssClasses} unused CSS classes`);
+                }
+                if (healthReport.summary.deadCodePaths > 0) {
+                    console.log(`💀 ${healthReport.summary.deadCodePaths} dead code paths`);
+                }
+                
+                console.log(chalk.cyan('\n💡 Run without --dry-run to perform actual surgery'));
+                return;
+            }
+            
+            const surgeryReport = await doctor.performCodeSurgery({
+                safeMode: options.backup,
+                operations,
+                verbose: options.verbose
+            });
+            
+            if (surgeryReport.success === false) {
+                console.log(chalk.green('\n✨ No surgical intervention needed!'));
+                console.log(surgeryReport.message);
+                return;
+            }
+            
+            // Display results
+            console.log(chalk.green('\n🎉 Surgery completed successfully!\n'));
+            
+            console.log(chalk.cyan('📊 Surgery Statistics:'));
+            console.log(`   Files Modified: ${surgeryReport.summary.totalFilesModified}`);
+            console.log(`   Lines Removed: ${surgeryReport.summary.totalLinesRemoved}`);
+            console.log(`   Functions Removed: ${surgeryReport.statistics.functionsRemoved}`);
+            console.log(`   Imports Removed: ${surgeryReport.statistics.importsRemoved}`);
+            console.log(`   CSS Classes Removed: ${surgeryReport.statistics.cssClassesRemoved}`);
+            console.log(`   Dead Code Removed: ${surgeryReport.statistics.deadCodeRemoved}`);
+            console.log(`   Estimated Bundle Size Reduction: ${surgeryReport.summary.estimatedBundleSizeReduction}`);
+            
+            if (surgeryReport.backup) {
+                console.log(chalk.yellow('\n💾 Backup Information:'));
+                console.log(`   Location: ${surgeryReport.backup.location}`);
+                console.log(`   Restore: ${surgeryReport.backup.restore}`);
+            }
+            
+            // Recommendations
+            if (surgeryReport.recommendations.length > 0) {
+                console.log(chalk.cyan('\n⚠️  Post-Surgery Recommendations:'));
+                surgeryReport.recommendations.forEach(rec => {
+                    const icon = rec.priority === 'high' ? '🚨' : '💡';
+                    console.log(`   ${icon} ${rec.message}`);
+                });
+            }
+            
+        } catch (error) {
+            console.error(chalk.red(`❌ Surgery failed: ${error.message}`));
+            process.exit(1);
+        }
+    });
+
+program
+    .command('report')
+    .description('📄 Generate detailed project health report')
+    .option('-p, --preload <path>', 'path to preload.js file', 'electron/preload.js')
+    .option('-s, --source <pattern>', 'glob pattern for JS source files', '**/*.{js,jsx,ts,tsx}')
+    .option('--css <pattern>', 'glob pattern for CSS files', '**/*.{css,scss,sass}')
+    .option('--html <pattern>', 'glob pattern for HTML files', '**/*.{html,htm}')
+    .option('-o, --output <file>', 'save report to file')
+    .option('--format <type>', 'report format (json, markdown)', 'json')
+    .action(async (options) => {
+        console.log(chalk.blue('📄 Script Doctor: Generating comprehensive health report...\n'));
+        
+        const doctor = new ChannelDoctor({
+            preloadPath: options.preload,
+            jsPattern: options.source,
+            cssPattern: options.css,
+            htmlPattern: options.html
+        });
+        
+        try {
+            const healthReport = await doctor.generateHealthReport();
+            
+            let output;
+            if (options.format === 'markdown') {
+                output = generateMarkdownReport(healthReport);
+            } else {
+                output = JSON.stringify(healthReport, null, 2);
+            }
+            
+            if (options.output) {
+                fs.writeFileSync(options.output, output);
+                console.log(chalk.green(`✅ Report saved to: ${options.output}`));
+            } else {
+                console.log(output);
+            }
+            
+        } catch (error) {
+            console.error(chalk.red(`❌ Report generation failed: ${error.message}`));
+            process.exit(1);
+        }
+    });
+
+// Helper function to generate markdown report
+function generateMarkdownReport(healthReport) {
+    const { healthScore, summary, recommendations, nextSteps } = healthReport;
+    
+    const scoreEmoji = healthScore >= 90 ? '🎉' : healthScore >= 70 ? '👍' : healthScore >= 50 ? '⚠️' : '🚨';
+    
+    return `# 🩺 Script Doctor Health Report
+
+## ${scoreEmoji} Overall Health Score: ${healthScore}/100
+
+Generated: ${new Date().toISOString()}  
+Project: ${healthReport.project}
+
+## 📊 Code Health Summary
+
+| Metric | Count |
+|--------|-------|
+| Unused Functions | ${summary.unusedFunctions} |
+| Unused Imports | ${summary.unusedImports} |
+| Unused CSS Classes | ${summary.unusedCssClasses} |
+| Dead Code Paths | ${summary.deadCodePaths} |
+| Duplicate Code Blocks | ${summary.duplicateCode} |
+| Complex Functions | ${summary.complexityIssues} |
+
+## 💡 Recommendations
+
+${recommendations.map(rec => `- ${rec.message}`).join('\n')}
+
+## 🎯 Next Steps
+
+${nextSteps.map((step, i) => `${i + 1}. **${step.action}**
+   - Command: \`${step.command}\`
+   - ${step.description}`).join('\n\n')}
+
+---
+*Report generated by electron-channel-doctor*
+`;
+}
+
 // Global error handler
 process.on('unhandledRejection', (error) => {
     console.error(chalk.red('❌ Unhandled error:'), error.message);

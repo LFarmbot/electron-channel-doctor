@@ -1,7 +1,7 @@
 {
   "name": "electron-channel-doctor",
   "version": "1.0.0",
-  "description": "Automate Electron IPC invoke channel management and prevent 'Invalid invoke channel' errors",
+  "description": "Advanced Script Doctor: Surgical code cleanup + Electron IPC channel management. Remove unused functions, imports, CSS classes, dead code paths with AI-powered analysis and health scoring.",
   "main": "lib/index.js",
   "bin": {
     "electron-channel-doctor": "bin/cli.js",
@@ -11,9 +11,23 @@
     "test": "jest",
     "lint": "eslint lib/ bin/",
     "build": "echo 'No build step needed'",
-    "prepublishOnly": "npm test"
+    "prepublishOnly": "npm test",
+    "health": "node bin/cli.js health",
+    "surgery": "node bin/cli.js surgery --dry-run",
+    "cleanup": "node bin/cli.js surgery",
+    "health-report": "node bin/cli.js report --format markdown --output HEALTH.md",
+    "check-channels": "node bin/cli.js check",
+    "fix-channels": "node bin/cli.js fix"
   },
   "keywords": [
+    "code-cleanup",
+    "script-doctor",
+    "unused-code",
+    "dead-code",
+    "code-analysis", 
+    "bundle-optimization",
+    "health-score",
+    "surgical-cleanup",
     "electron",
     "ipc",
     "security",
@@ -23,7 +37,11 @@
     "static-analysis",
     "developer-tools",
     "debugging",
-    "workflow-analysis"
+    "workflow-analysis",
+    "refactoring",
+    "code-quality",
+    "housekeeping",
+    "automation"
   ],
   "author": "Erwin Fraterman",
   "contributors": [
