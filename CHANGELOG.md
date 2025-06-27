@@ -5,7 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2024-01-XX
+## [2.1.0] - 2024-01-15
+
+### 🔒 Major Security Update
+
+#### Added
+- **Security Vulnerability Detection** - Comprehensive Electron IPC security analysis
+  - Detects context isolation bypasses
+  - Finds dangerous Node.js API exposure
+  - Identifies unvalidated IPC handlers
+  - Catches insecure Electron configurations (nodeIntegration, webSecurity)
+  - Detects sensitive data exposure in IPC channels
+  - Validates sender/frame verification (CVE-2022-29247 pattern)
+- **Security Score** - 0-100 scoring based on vulnerability severity
+- **CLI Command** - `electron-channel-doctor security` with full reporting
+- **CVE-based Detection** - Based on real 2024 security research and CVEs
+- **Actionable Recommendations** - Clear fixes for each vulnerability type
+
+#### Enhanced
+- Health scoring now includes security vulnerabilities (highest impact)
+- Comprehensive health reports now include security analysis
+- Added security-specific npm scripts for CI/CD integration
+
+## [2.0.0] - 2024-01-10
 
 ### Added
 - 🎉 Initial release of Electron Channel Doctor

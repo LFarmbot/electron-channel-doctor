@@ -1,14 +1,14 @@
 # 🩺 Electron Channel Doctor - The Ultimate Script Doctor
 
 > **Advanced Code Housekeeping & Surgical Cleanup Tool**  
-> *Plus: Automate Electron IPC invoke channel management*
+> *Plus: Automate Electron IPC invoke channel management & Security Vulnerability Detection*
 
 [![npm version](https://badge.fury.io/js/electron-channel-doctor.svg)](https://badge.fury.io/js/electron-channel-doctor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## 🚀 **What Makes This Special?**
 
-What started as a simple IPC channel manager has evolved into a **comprehensive code housekeeping powerhouse** that can perform surgical code cleanup with precision!
+What started as a simple IPC channel manager has evolved into a **comprehensive code housekeeping powerhouse** that can perform surgical code cleanup with precision, **now with advanced security vulnerability detection!**
 
 ### 🩺 **Script Doctor - Advanced Code Surgery**
 
@@ -25,6 +25,21 @@ What started as a simple IPC channel manager has evolved into a **comprehensive 
 - 📊 **Bundle Size Estimation** - See how much weight you can lose
 - 📋 **Safe Backups** - Automatic backups before any surgery
 - 🎯 **Actionable Recommendations** - Know exactly what to do next
+
+### 🔒 **NEW: Security Vulnerability Detection**
+
+**Protect your Electron app from critical security issues:**
+- 🚨 **Context Isolation Bypass** - Detect attempts to break security boundaries
+- 🛡️ **Dangerous API Exposure** - Find Node.js APIs exposed to renderer
+- ⚠️ **Unvalidated IPC Handlers** - Catch injection vulnerabilities  
+- 🔓 **Insecure Configuration** - nodeIntegration, webSecurity issues
+- 🔑 **Sensitive Data Leaks** - Passwords, tokens, API keys in IPC
+- 📡 **Sender Validation** - Missing frame/sender verification (CVE-2022-29247)
+
+**Based on 2024 security research and real CVEs:**
+- CVE-2024-39698 - Code signature validation bypass
+- CVE-2022-29247 - IPC access without proper validation
+- And many more Electron-specific vulnerabilities
 
 ### 🔧 **Bonus: Electron IPC Channel Management**
 - ✅ **Auto-detect** `electronAPI.invoke()` calls in your code
@@ -150,6 +165,77 @@ electron-channel-doctor report
 
 ---
 
+## 🔒 **Security Analysis**
+
+### **Scan for Security Vulnerabilities**
+```bash
+# Full security scan with all vulnerability types
+electron-channel-doctor security
+
+# Verbose output showing all issues (including low severity)
+electron-channel-doctor security --verbose
+
+# Export security report
+electron-channel-doctor security --output security-report.json
+
+# Custom file patterns
+electron-channel-doctor security \
+  --main "main.js,electron/**/*.js" \
+  --renderer "src/**/*.js,renderer/**/*.js" \
+  --preload "preload.js"
+```
+
+**Example Security Scan Output:**
+```
+🔒 Security Analyzer: Scanning for Electron IPC vulnerabilities...
+
+🛡️  Security Score: 45/100
+
+📊 Vulnerability Summary:
+   🚨 Critical: 3
+   ⚠️  High: 2
+   ⚡ Medium: 4
+   💡 Low: 1
+
+🚨 CRITICAL Vulnerabilities:
+
+   [insecure-node-integration] nodeIntegration enabled - major security risk
+   File: main.js (line 12)
+   Fix: Set nodeIntegration: false and use contextBridge
+   Reference: Enables attacks like CVE-2022-29247
+
+   [missing-context-bridge] Preload script not using contextBridge API
+   File: preload.js
+   Fix: Use contextBridge.exposeInMainWorld for secure IPC
+
+   [dangerous-api-exposure] IPC handler 'file-operation' exposes dangerous API: fs
+   File: main.js (line 45)
+   Fix: Never expose Node.js system APIs directly via IPC
+   Reference: Common attack vector in Electron apps
+
+⚠️  HIGH Vulnerabilities:
+
+   [unvalidated-ipc-handler] IPC handler 'get-user-data' lacks input validation
+   File: main.js (line 67)
+   Fix: Add input validation to prevent injection attacks
+   Reference: Related to CVE-2022-29247
+
+🛡️  Security Recommendations:
+
+   🚨 Fix critical vulnerabilities immediately
+      Critical vulnerabilities can lead to RCE or data theft
+
+   🚨 Disable nodeIntegration and enable contextIsolation
+      This is the most important security configuration
+
+📚 Security Resources:
+   • https://www.electronjs.org/docs/latest/tutorial/security
+   • https://github.com/electron/electron/security/advisories
+   • OWASP Electron Security Guidelines
+```
+
+---
+
 ## 🔧 **IPC Channel Management** (Bonus Feature)
 
 ```bash
@@ -249,6 +335,11 @@ Your project gets a **0-100 health score** based on:
 - **Duplicate Code:** -2 points each (max -10)
 - **Complexity Issues:** -1 point each (max -15)
 - **IPC Channel Issues:** -1 to -2 points each (max -20)
+- **🔒 Security Vulnerabilities (NEW):**
+  - **Critical:** -10 points each (max -30)
+  - **High:** -5 points each (max -20)
+  - **Medium:** -2 points each (max -10)
+  - **Low:** -0.5 points each (max -5)
 
 ---
 
@@ -330,10 +421,13 @@ jobs:
 {
   \"scripts\": {
     \"health\": \"electron-channel-doctor health\",
+    \"security\": \"electron-channel-doctor security\",
     \"surgery\": \"electron-channel-doctor surgery --dry-run\",
     \"cleanup\": \"electron-channel-doctor surgery\",
     \"health-report\": \"electron-channel-doctor report --format markdown --output HEALTH.md\",
-    \"precommit\": \"electron-channel-doctor health --json | jq -e '.healthScore >= 70'\"
+    \"security-report\": \"electron-channel-doctor security --output security-report.json\",
+    \"precommit\": \"electron-channel-doctor health --json | jq -e '.healthScore >= 70'\",
+    \"security-check\": \"electron-channel-doctor security --json | jq -e '.summary.critical == 0'\"
   }
 }
 ```
@@ -347,9 +441,11 @@ const {
   ChannelDoctor, 
   UnusedCodeDetector, 
   CodeSurgeon,
+  SecurityAnalyzer,
   checkHealth,
   performSurgery,
-  generateHealthReport
+  generateHealthReport,
+  analyzeSecurity
 } = require('electron-channel-doctor');
 
 // Quick health check
@@ -370,6 +466,17 @@ if (healthReport.healthScore < 70) {
   console.log(`Removed ${surgeryReport.summary.totalLinesRemoved} lines`);
 }
 
+// Security analysis
+const securityReport = await analyzeSecurity({
+  mainProcess: ['main.js', 'electron/**/*.js'],
+  rendererProcess: ['src/**/*.js', 'renderer/**/*.js']
+});
+
+if (securityReport.summary.critical > 0) {
+  console.error('Critical security vulnerabilities found!');
+  process.exit(1);
+}
+
 // Advanced usage
 const doctor = new ChannelDoctor({
   jsPattern: 'src/**/*.{js,tsx}',
@@ -378,6 +485,7 @@ const doctor = new ChannelDoctor({
 
 const analysis = await doctor.performHealthCheckup();
 const surgery = await doctor.performCodeSurgery();
+const security = await doctor.analyzeSecurityVulnerabilities();
 ```
 
 ---
@@ -448,7 +556,7 @@ npm test
 - [x] Health scoring system
 
 ### **Phase 2: Advanced Analysis** 🔄
-- [ ] **Security analysis** - detect vulnerable patterns
+- [x] **Security analysis** - detect vulnerable patterns ✅
 - [ ] **Performance analysis** - identify bottlenecks
 - [ ] **Accessibility analysis** - find a11y issues
 - [ ] **SEO analysis** - optimize meta tags & structure

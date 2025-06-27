@@ -204,6 +204,150 @@ program
 // 🩺 SCRIPT DOCTOR COMMANDS 🩺
 
 program
+    .command('security')
+    .description('🔒 Analyze Electron IPC security vulnerabilities')
+    .option('-p, --preload <path>', 'path to preload.js file', 'electron/preload.js')
+    .option('-m, --main <pattern>', 'glob pattern for main process files', 'main.js,electron/**/*.js,src/main/**/*.js')
+    .option('-r, --renderer <pattern>', 'glob pattern for renderer files', 'src/**/*.js,public/**/*.js,renderer/**/*.js')
+    .option('-v, --verbose', 'show detailed output')
+    .option('--json', 'output as JSON')
+    .option('-o, --output <file>', 'save report to file')
+    .action(async (options) => {
+        console.log(chalk.blue('🔒 Security Analyzer: Scanning for Electron IPC vulnerabilities...\n'));
+        
+        const doctor = new ChannelDoctor({
+            preloadPath: options.preload,
+            mainProcess: options.main.split(','),
+            rendererProcess: options.renderer.split(','),
+            verbose: options.verbose
+        });
+        
+        try {
+            const securityReport = await doctor.analyzeSecurityVulnerabilities();
+            
+            if (options.json || options.output) {
+                const jsonOutput = JSON.stringify(securityReport, null, 2);
+                
+                if (options.output) {
+                    fs.writeFileSync(options.output, jsonOutput);
+                    console.log(chalk.green(`✅ Security report saved to: ${options.output}`));
+                    
+                    // Still show summary on console
+                    displaySecuritySummary(securityReport);
+                } else {
+                    console.log(jsonOutput);
+                }
+                return;
+            }
+            
+            // Display results
+            displaySecuritySummary(securityReport);
+            
+            // Display vulnerabilities by severity
+            if (securityReport.summary.critical > 0) {
+                console.log(chalk.red('\n🚨 CRITICAL Vulnerabilities:'));
+                securityReport.vulnerabilities.critical.forEach(vuln => {
+                    console.log(chalk.red(`\n   [${vuln.type}] ${vuln.message}`));
+                    console.log(chalk.gray(`   File: ${vuln.file}${vuln.line ? ` (line ${vuln.line})` : ''}`));
+                    console.log(chalk.yellow(`   Fix: ${vuln.recommendation}`));
+                    if (vuln.cve) console.log(chalk.gray(`   Reference: ${vuln.cve}`));
+                });
+            }
+            
+            if (securityReport.summary.high > 0) {
+                console.log(chalk.red('\n⚠️  HIGH Vulnerabilities:'));
+                securityReport.vulnerabilities.high.forEach(vuln => {
+                    console.log(chalk.yellow(`\n   [${vuln.type}] ${vuln.message}`));
+                    console.log(chalk.gray(`   File: ${vuln.file}${vuln.line ? ` (line ${vuln.line})` : ''}`));
+                    console.log(chalk.cyan(`   Fix: ${vuln.recommendation}`));
+                    if (vuln.cve) console.log(chalk.gray(`   Reference: ${vuln.cve}`));
+                });
+            }
+            
+            if (securityReport.summary.medium > 0 && options.verbose) {
+                console.log(chalk.yellow('\n⚡ MEDIUM Vulnerabilities:'));
+                securityReport.vulnerabilities.medium.forEach(vuln => {
+                    console.log(chalk.gray(`\n   [${vuln.type}] ${vuln.message}`));
+                    console.log(chalk.gray(`   File: ${vuln.file}${vuln.line ? ` (line ${vuln.line})` : ''}`));
+                    console.log(chalk.gray(`   Fix: ${vuln.recommendation}`));
+                });
+            }
+            
+            if (securityReport.summary.low > 0 && options.verbose) {
+                console.log(chalk.gray('\n💡 LOW Vulnerabilities:'));
+                securityReport.vulnerabilities.low.forEach(vuln => {
+                    console.log(chalk.gray(`\n   [${vuln.type}] ${vuln.message}`));
+                    console.log(chalk.gray(`   File: ${vuln.file}${vuln.line ? ` (line ${vuln.line})` : ''}`));
+                    console.log(chalk.gray(`   Fix: ${vuln.recommendation}`));
+                });
+            }
+            
+            // Recommendations
+            if (securityReport.recommendations && securityReport.recommendations.length > 0) {
+                console.log(chalk.cyan('\n🛡️  Security Recommendations:'));
+                securityReport.recommendations.forEach(rec => {
+                    const icon = rec.priority === 'CRITICAL' ? '🚨' : 
+                               rec.priority === 'HIGH' ? '⚠️' : '💡';
+                    console.log(`\n   ${icon} ${chalk.bold(rec.action)}`);
+                    console.log(chalk.gray(`      ${rec.description}`));
+                });
+            }
+            
+            // Resources
+            if (securityReport.resources && securityReport.resources.length > 0) {
+                console.log(chalk.blue('\n📚 Security Resources:'));
+                securityReport.resources.forEach(resource => {
+                    console.log(`   • ${resource}`);
+                });
+            }
+            
+            // Exit with error code if critical vulnerabilities exist
+            process.exit(securityReport.summary.critical > 0 ? 1 : 0);
+            
+        } catch (error) {
+            console.error(chalk.red(`❌ Security analysis failed: ${error.message}`));
+            process.exit(1);
+        }
+    });
+
+// Helper function to display security summary
+function displaySecuritySummary(securityReport) {
+    const scoreColor = securityReport.securityScore >= 90 ? 'green' : 
+                      securityReport.securityScore >= 70 ? 'yellow' : 
+                      securityReport.securityScore >= 50 ? 'red' : 'red';
+    
+    console.log(chalk[scoreColor](`🛡️  Security Score: ${securityReport.securityScore}/100\n`));
+    
+    console.log(chalk.cyan('📊 Vulnerability Summary:'));
+    
+    if (securityReport.summary.critical > 0) {
+        console.log(chalk.red(`   🚨 Critical: ${securityReport.summary.critical}`));
+    } else {
+        console.log(chalk.green(`   ✅ Critical: 0`));
+    }
+    
+    if (securityReport.summary.high > 0) {
+        console.log(chalk.red(`   ⚠️  High: ${securityReport.summary.high}`));
+    } else {
+        console.log(chalk.green(`   ✅ High: 0`));
+    }
+    
+    if (securityReport.summary.medium > 0) {
+        console.log(chalk.yellow(`   ⚡ Medium: ${securityReport.summary.medium}`));
+    } else {
+        console.log(chalk.green(`   ✅ Medium: 0`));
+    }
+    
+    if (securityReport.summary.low > 0) {
+        console.log(chalk.gray(`   💡 Low: ${securityReport.summary.low}`));
+    } else {
+        console.log(chalk.green(`   ✅ Low: 0`));
+    }
+    
+    console.log(chalk.cyan(`\n   Total Issues: ${securityReport.summary.total}`));
+}
+
+program
     .command('health')
     .description('🩺 Perform comprehensive code health checkup')
     .option('-p, --preload <path>', 'path to preload.js file', 'electron/preload.js')
