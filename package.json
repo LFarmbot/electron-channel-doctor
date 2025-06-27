@@ -1,0 +1,61 @@
+{
+  "name": "electron-channel-doctor",
+  "version": "1.0.0",
+  "description": "Automate Electron IPC invoke channel management and prevent 'Invalid invoke channel' errors",
+  "main": "lib/index.js",
+  "bin": {
+    "electron-channel-doctor": "bin/cli.js",
+    "channel-doctor": "bin/cli.js"
+  },
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint lib/ bin/",
+    "build": "echo 'No build step needed'",
+    "prepublishOnly": "npm test && npm run lint"
+  },
+  "keywords": [
+    "electron",
+    "ipc",
+    "security",
+    "preload",
+    "invoke",
+    "channels",
+    "static-analysis",
+    "developer-tools",
+    "debugging",
+    "workflow-analysis"
+  ],
+  "author": "Erwin Fraterman",
+  "contributors": [
+    "Erwin Fraterman"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/erwinfraterman/electron-channel-doctor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/erwinfraterman/electron-channel-doctor/issues"
+  },
+  "homepage": "https://github.com/erwinfraterman/electron-channel-doctor#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "files": [
+    "lib/",
+    "bin/",
+    "examples/",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "commander": "^9.0.0",
+    "chalk": "^4.1.2",
+    "glob": "^8.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "eslint": "^8.0.0"
+  },
+  "preferGlobal": true
+} 
