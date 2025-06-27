@@ -137,7 +137,7 @@ const validInvokeChannels = [
             expect(result.success).toBe(true);
             expect(result.channels.found).toEqual(['channel-1', 'missing-channel']);
             expect(result.channels.missing).toEqual(['missing-channel']);
-            expect(result.channels.unused).toEqual(['unused-channel']);
+            expect(result.channels.unused).toEqual(['channel-2', 'unused-channel']);
         });
 
         test('should handle errors gracefully', () => {
