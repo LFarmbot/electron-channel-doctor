@@ -3,15 +3,22 @@ const fs = require('fs');
 const path = require('path');
 
 // Mock fs for testing
-jest.mock('fs');
+jest.mock('fs', () => ({
+    ...jest.requireActual('fs'),
+    promises: {
+        readFile: jest.fn(),
+        writeFile: jest.fn(),
+        copyFile: jest.fn(),
+    },
+}));
 jest.mock('glob');
 
 describe('ChannelDoctor', () => {
-    let mockFs;
+    let mockFsPromises;
     let mockGlob;
     
     beforeEach(() => {
-        mockFs = require('fs');
+        mockFsPromises = require('fs').promises;
         mockGlob = require('glob');
         jest.clearAllMocks();
     });
@@ -37,7 +44,7 @@ describe('ChannelDoctor', () => {
     });
 
     describe('getCurrentWhitelist', () => {
-        test('should parse validInvokeChannels from preload.js', () => {
+        test('should parse validInvokeChannels from preload.js', async () => {
             const mockPreloadContent = `
 const validInvokeChannels = [
     'channel-1',
@@ -46,37 +53,35 @@ const validInvokeChannels = [
 ];
             `;
             
-            mockFs.existsSync.mockReturnValue(true);
-            mockFs.readFileSync.mockReturnValue(mockPreloadContent);
+            mockFsPromises.readFile.mockResolvedValue(mockPreloadContent);
             
             const doctor = new ChannelDoctor();
-            const channels = doctor.getCurrentWhitelist();
+            const channels = await doctor.getCurrentWhitelist();
             
             expect(channels).toEqual(['channel-1', 'channel-2', 'channel-3']);
         });
 
-        test('should throw error if preload file does not exist', () => {
-            mockFs.existsSync.mockReturnValue(false);
+        test('should throw error if preload file does not exist', async () => {
+            mockFsPromises.readFile.mockRejectedValue({ code: 'ENOENT' });
             
             const doctor = new ChannelDoctor();
             
-            expect(() => doctor.getCurrentWhitelist()).toThrow('Preload file not found');
+            await expect(doctor.getCurrentWhitelist()).rejects.toThrow('Preload file not found');
         });
 
-        test('should throw error if validInvokeChannels not found', () => {
+        test('should throw error if validInvokeChannels not found', async () => {
             const mockPreloadContent = 'const someOtherArray = [];';
             
-            mockFs.existsSync.mockReturnValue(true);
-            mockFs.readFileSync.mockReturnValue(mockPreloadContent);
+            mockFsPromises.readFile.mockResolvedValue(mockPreloadContent);
             
             const doctor = new ChannelDoctor();
             
-            expect(() => doctor.getCurrentWhitelist()).toThrow('Could not find validInvokeChannels array');
+            await expect(doctor.getCurrentWhitelist()).rejects.toThrow('Could not find validInvokeChannels array');
         });
     });
 
     describe('scanForInvokeCalls', () => {
-        test('should find electronAPI.invoke calls in files', () => {
+        test('should find electronAPI.invoke calls in files', async () => {
             const mockFiles = ['file1.js', 'file2.js'];
             const mockContent1 = `
                 electronAPI.invoke('test-channel-1', data);
@@ -86,34 +91,34 @@ const validInvokeChannels = [
                 await electronAPI.invoke('test-channel-3', params);
             `;
             
-            mockGlob.sync.mockReturnValue(mockFiles);
-            mockFs.readFileSync
-                .mockReturnValueOnce(mockContent1)
-                .mockReturnValueOnce(mockContent2);
+            mockGlob.glob.mockResolvedValue(mockFiles);
+            mockFsPromises.readFile
+                .mockResolvedValueOnce(mockContent1)
+                .mockResolvedValueOnce(mockContent2);
             
             const doctor = new ChannelDoctor();
-            const channels = doctor.scanForInvokeCalls();
+            const channels = await doctor.scanForInvokeCalls();
             
             expect(channels).toEqual(['test-channel-1', 'test-channel-2', 'test-channel-3']);
         });
 
-        test('should handle file read errors gracefully', () => {
+        test('should handle file read errors gracefully', async () => {
             const mockFiles = ['file1.js'];
             
-            mockGlob.sync.mockReturnValue(mockFiles);
-            mockFs.readFileSync.mockImplementation(() => {
+            mockGlob.glob.mockResolvedValue(mockFiles);
+            mockFsPromises.readFile.mockImplementation(() => {
                 throw new Error('File read error');
             });
             
             const doctor = new ChannelDoctor();
-            const channels = doctor.scanForInvokeCalls();
+            const channels = await doctor.scanForInvokeCalls();
             
             expect(channels).toEqual([]);
         });
     });
 
     describe('analyze', () => {
-        test('should return analysis results', () => {
+        test('should return analysis results', async () => {
             const mockPreloadContent = `
 const validInvokeChannels = [
     'channel-1',
@@ -126,13 +131,12 @@ const validInvokeChannels = [
                 electronAPI.invoke('missing-channel', data);
             `;
             
-            mockFs.existsSync.mockReturnValue(true);
-            mockFs.readFileSync.mockReturnValue(mockPreloadContent);
-            mockGlob.sync.mockReturnValue(['test.js']);
-            mockFs.readFileSync.mockReturnValueOnce(mockPreloadContent).mockReturnValueOnce(mockJsContent);
+            mockFsPromises.readFile.mockResolvedValue(mockPreloadContent);
+            mockGlob.glob.mockResolvedValue(['test.js']);
+            mockFsPromises.readFile.mockResolvedValueOnce(mockPreloadContent).mockResolvedValueOnce(mockJsContent);
             
             const doctor = new ChannelDoctor();
-            const result = doctor.analyze();
+            const result = await doctor.analyze();
             
             expect(result.success).toBe(true);
             expect(result.channels.found).toEqual(['channel-1', 'missing-channel']);
@@ -140,11 +144,11 @@ const validInvokeChannels = [
             expect(result.channels.unused).toEqual(['channel-2', 'unused-channel']);
         });
 
-        test('should handle errors gracefully', () => {
-            mockFs.existsSync.mockReturnValue(false);
+        test('should handle errors gracefully', async () => {
+            mockFsPromises.readFile.mockRejectedValue({ code: 'ENOENT' });
             
             const doctor = new ChannelDoctor();
-            const result = doctor.analyze();
+            const result = await doctor.analyze();
             
             expect(result.success).toBe(false);
             expect(result.error).toContain('Preload file not found');

@@ -95,7 +95,7 @@ electron-project/
 ## 🚀 CONTINUOUS IMPROVEMENT AREAS
 
 ### Phase 1: Core Enhancement (Immediate)
-- **Smart Channel Detection**: Use AST parsing instead of regex
+- **Smart Code Analysis**: Use AST (Abstract Syntax Tree) parsing instead of regex for both channel detection and duplicate code detection to understand the code's structure, not just its text.
 - **Context-Aware Fixes**: Understand project structure before fixing
 - **Interactive CLI**: Guided setup with smart defaults
 - **IDE Extensions**: VSCode/WebStorm integration

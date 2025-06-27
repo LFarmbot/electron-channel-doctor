@@ -23,6 +23,7 @@ program
     .description('Check for missing or unused invoke channels')
     .option('-p, --preload <path>', 'path to preload.js file', 'electron/preload.js')
     .option('-s, --source <pattern>', 'glob pattern for JS source files', 'public/js/**/*.js')
+    .option('-i, --ignore <patterns...>', 'glob patterns to ignore')
     .option('-v, --verbose', 'verbose output')
     .option('--json', 'output results as JSON')
     .action(async (options) => {
@@ -31,10 +32,11 @@ program
         const doctor = new ChannelDoctor({
             preloadPath: options.preload,
             jsSource: options.source,
+            ignore: options.ignore,
             verbose: options.verbose
         });
 
-        const result = doctor.analyze();
+        const result = await doctor.analyze();
 
         if (!result.success) {
             console.error(chalk.red('❌ Error:'), result.error);
@@ -87,6 +89,7 @@ program
     .description('Automatically fix missing invoke channels in preload.js')
     .option('-p, --preload <path>', 'path to preload.js file', 'electron/preload.js')
     .option('-s, --source <pattern>', 'glob pattern for JS source files', 'public/js/**/*.js')
+    .option('-i, --ignore <patterns...>', 'glob patterns to ignore')
     .option('-v, --verbose', 'verbose output')
     .option('--dry-run', 'show what would be changed without making changes')
     .action(async (options) => {
@@ -95,12 +98,13 @@ program
         const doctor = new ChannelDoctor({
             preloadPath: options.preload,
             jsSource: options.source,
+            ignore: options.ignore,
             verbose: options.verbose
         });
 
         try {
             if (options.dryRun) {
-                const fixed = doctor.generateFixedPreload();
+                const fixed = await doctor.generateFixedPreload();
                 console.log(chalk.yellow('🔍 Dry run - showing what would be changed:\n'));
                 console.log(chalk.green(`✅ Would keep ${fixed.channels.length} channels`));
                 if (fixed.removed.length > 0) {
@@ -111,7 +115,7 @@ program
                 return;
             }
 
-            const result = doctor.fix();
+            const result = await doctor.fix();
             
             console.log(chalk.green('✅ Successfully fixed preload.js!'));
             console.log(`   Backup created: ${path.relative(process.cwd(), result.backupPath)}`);
@@ -135,15 +139,17 @@ program
     .description('List all found invoke channels')
     .option('-p, --preload <path>', 'path to preload.js file', 'electron/preload.js')
     .option('-s, --source <pattern>', 'glob pattern for JS source files', 'public/js/**/*.js')
+    .option('-i, --ignore <patterns...>', 'glob patterns to ignore')
     .option('--used-only', 'only show channels that are actually used')
     .option('--unused-only', 'only show channels that are unused')
     .action(async (options) => {
         const doctor = new ChannelDoctor({
             preloadPath: options.preload,
-            jsSource: options.source
+            jsSource: options.source,
+            ignore: options.ignore
         });
 
-        const result = doctor.analyze();
+        const result = await doctor.analyze();
 
         if (!result.success) {
             console.error(chalk.red('❌ Error:'), result.error);
@@ -209,6 +215,7 @@ program
     .option('-p, --preload <path>', 'path to preload.js file', 'electron/preload.js')
     .option('-m, --main <pattern>', 'glob pattern for main process files', 'main.js,electron/**/*.js,src/main/**/*.js')
     .option('-r, --renderer <pattern>', 'glob pattern for renderer files', 'src/**/*.js,public/**/*.js,renderer/**/*.js')
+    .option('-i, --ignore <patterns...>', 'glob patterns to ignore')
     .option('-v, --verbose', 'show detailed output')
     .option('--json', 'output as JSON')
     .option('-o, --output <file>', 'save report to file')
@@ -219,6 +226,7 @@ program
             preloadPath: options.preload,
             mainProcess: options.main.split(','),
             rendererProcess: options.renderer.split(','),
+            ignore: options.ignore,
             verbose: options.verbose
         });
         
@@ -354,6 +362,7 @@ program
     .option('-s, --source <pattern>', 'glob pattern for JS source files', '**/*.{js,jsx,ts,tsx}')
     .option('--css <pattern>', 'glob pattern for CSS files', '**/*.{css,scss,sass}')
     .option('--html <pattern>', 'glob pattern for HTML files', '**/*.{html,htm}')
+    .option('-i, --ignore <patterns...>', 'glob patterns to ignore')
     .option('-v, --verbose', 'show detailed output')
     .option('--json', 'output as JSON')
     .action(async (options) => {
@@ -364,6 +373,7 @@ program
             jsPattern: options.source,
             cssPattern: options.css,
             htmlPattern: options.html,
+            ignore: options.ignore,
             verbose: options.verbose
         });
         
@@ -395,6 +405,33 @@ program
                 console.log(`   Unused IPC Channels: ${healthReport.channels.summary.unusedInWhitelist}`);
             }
             
+            // Architecture issues
+            if (healthReport.architecture && healthReport.architecture.summary.total > 0) {
+                console.log(chalk.cyan('\n🏛️ Architecture & Performance Issues:'));
+                [...healthReport.architecture.issues.architecture, ...healthReport.architecture.issues.performance].forEach(issue => {
+                    const severityColor = issue.severity === 'high' ? 'red' : 'yellow';
+                    console.log(chalk[severityColor](`\n   [${issue.severity.toUpperCase()}] ${issue.message}`));
+                    if (issue.file) {
+                        console.log(chalk.gray(`   File: ${issue.file}`));
+                    }
+                    console.log(chalk.cyan(`   -> Recommendation: ${issue.recommendation}`));
+                });
+            }
+
+            // Verbose details for duplicate code
+            if (options.verbose && healthReport.details.duplicateCode.length > 0) {
+                console.log(chalk.cyan('\n🔄 Duplicate Code Details:'));
+                healthReport.details.duplicateCode.forEach((duplicate, index) => {
+                    console.log(chalk.yellow(`\n   [Duplicate Set ${index + 1}] Found ${duplicate.duplicateCount} times:`));
+                    console.log(chalk.gray('   ' + '—'.repeat(40)));
+                    console.log(chalk.italic.gray(`   ${duplicate.block.replace(/\n/g, '\n   ')}`));
+                    console.log(chalk.gray('   ' + '—'.repeat(40)));
+                    duplicate.locations.forEach(loc => {
+                        console.log(chalk.white(`   -> ${loc.file}:${loc.startLine}-${loc.endLine}`));
+                    });
+                });
+            }
+
             // Recommendations
             if (healthReport.recommendations.length > 0) {
                 console.log(chalk.cyan('\n💡 Recommendations:'));
@@ -428,6 +465,7 @@ program
     .option('-s, --source <pattern>', 'glob pattern for JS source files', '**/*.{js,jsx,ts,tsx}')
     .option('--css <pattern>', 'glob pattern for CSS files', '**/*.{css,scss,sass}')
     .option('--html <pattern>', 'glob pattern for HTML files', '**/*.{html,htm}')
+    .option('-i, --ignore <patterns...>', 'glob patterns to ignore')
     .option('--no-backup', 'skip creating backup (DANGEROUS!)')
     .option('--operations <ops>', 'comma-separated list of operations (unused-functions,unused-imports,unused-css-classes,dead-code-paths)')
     .option('-v, --verbose', 'show detailed output')
@@ -444,6 +482,7 @@ program
             jsPattern: options.source,
             cssPattern: options.css,
             htmlPattern: options.html,
+            ignore: options.ignore,
             verbose: options.verbose
         });
         
@@ -525,6 +564,7 @@ program
     .option('-s, --source <pattern>', 'glob pattern for JS source files', '**/*.{js,jsx,ts,tsx}')
     .option('--css <pattern>', 'glob pattern for CSS files', '**/*.{css,scss,sass}')
     .option('--html <pattern>', 'glob pattern for HTML files', '**/*.{html,htm}')
+    .option('-i, --ignore <patterns...>', 'glob patterns to ignore')
     .option('-o, --output <file>', 'save report to file')
     .option('--format <type>', 'report format (json, markdown)', 'json')
     .action(async (options) => {
@@ -534,7 +574,8 @@ program
             preloadPath: options.preload,
             jsPattern: options.source,
             cssPattern: options.css,
-            htmlPattern: options.html
+            htmlPattern: options.html,
+            ignore: options.ignore
         });
         
         try {

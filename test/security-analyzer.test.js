@@ -1,23 +1,50 @@
 const { SecurityAnalyzer } = require('../lib/security-analyzer');
+const { getAstFromFile } = require('../lib/ast-parser');
 const fs = require('fs');
 const path = require('path');
+const { glob } = require('glob');
 
-// Mock file system
-jest.mock('fs');
+// Mock modules
+jest.mock('fs', () => ({
+    ...jest.requireActual('fs'),
+    promises: {
+        readFile: jest.fn(),
+    },
+}));
 jest.mock('glob');
+jest.mock('../lib/ast-parser.js');
 
 describe('SecurityAnalyzer', () => {
     let analyzer;
     const mockProjectRoot = '/test/project';
+    let mockFsPromises;
 
     beforeEach(() => {
         analyzer = new SecurityAnalyzer({
             projectRoot: mockProjectRoot,
-            verbose: false
+            verbose: false,
+            // Provide explicit paths to avoid globbing in tests
+            mainProcess: ['main.js'],
+            preloadScripts: ['preload.js'],
+            rendererProcess: ['renderer.js'],
         });
         
         // Reset mocks
         jest.clearAllMocks();
+        mockFsPromises = require('fs').promises;
+        mockFsPromises.readFile.mockResolvedValue(''); // Default mock
+        require('glob').glob.mockImplementation(pattern => {
+            if (analyzer.options.mainProcess.some(p => pattern.includes(p))) {
+                return Promise.resolve(analyzer.options.mainProcess);
+            }
+            if (analyzer.options.preloadScripts.some(p => pattern.includes(p))) {
+                return Promise.resolve(analyzer.options.preloadScripts);
+            }
+            if (analyzer.options.rendererProcess.some(p => pattern.includes(p))) {
+                return Promise.resolve(analyzer.options.rendererProcess);
+            }
+            return Promise.resolve([]);
+        });
     });
 
     describe('Security Vulnerability Detection', () => {
@@ -34,9 +61,9 @@ describe('SecurityAnalyzer', () => {
                     }
                 });
             `;
+            const ast = require('@babel/parser').parse(mainContent, { sourceType: 'module' });
 
-            require('glob').sync.mockReturnValue(['/test/project/main.js']);
-            fs.readFileSync.mockReturnValue(mainContent);
+            getAstFromFile.mockReturnValue({ ast, code: mainContent });
 
             const result = await analyzer.analyze();
 
@@ -44,10 +71,16 @@ describe('SecurityAnalyzer', () => {
             expect(result.summary.critical).toBeGreaterThan(0);
             
             const nodeIntegrationIssue = result.vulnerabilities.critical.find(
-                v => v.type === 'insecure-node-integration'
+                v => v.type === 'insecure-nodeintegration'
             );
             expect(nodeIntegrationIssue).toBeDefined();
             expect(nodeIntegrationIssue.message).toContain('nodeIntegration enabled');
+
+            const contextIsolationIssue = result.vulnerabilities.critical.find(
+                v => v.type === 'disabled-context-isolation'
+            );
+            expect(contextIsolationIssue).toBeDefined();
+            expect(contextIsolationIssue.message).toContain('contextIsolation disabled');
         });
 
         test('detects unvalidated IPC handlers', async () => {
@@ -60,9 +93,9 @@ describe('SecurityAnalyzer', () => {
                     return fs.readFileSync(data.path, 'utf8');
                 });
             `;
+            const ast = require('@babel/parser').parse(mainContent, { sourceType: 'module' });
 
-            require('glob').sync.mockReturnValue(['/test/project/main.js']);
-            fs.readFileSync.mockReturnValue(mainContent);
+            getAstFromFile.mockReturnValue({ ast, code: mainContent });
 
             const result = await analyzer.analyze();
 
@@ -85,9 +118,8 @@ describe('SecurityAnalyzer', () => {
                     sendMessage: (channel, data) => ipcRenderer.send(channel, data)
                 };
             `;
-
-            require('glob').sync.mockReturnValue(['/test/project/preload.js']);
-            fs.readFileSync.mockReturnValue(preloadContent);
+            
+            mockFsPromises.readFile.mockResolvedValue(preloadContent);
 
             const result = await analyzer.analyze();
 
@@ -103,8 +135,7 @@ describe('SecurityAnalyzer', () => {
                 console.log(result);
             `;
 
-            require('glob').sync.mockReturnValue(['/test/project/renderer.js']);
-            fs.readFileSync.mockReturnValue(rendererContent);
+            mockFsPromises.readFile.mockResolvedValue(rendererContent);
 
             const result = await analyzer.analyze();
 
@@ -125,9 +156,9 @@ describe('SecurityAnalyzer', () => {
                     };
                 });
             `;
+            const ast = require('@babel/parser').parse(mainContent, { sourceType: 'module' });
 
-            require('glob').sync.mockReturnValue(['/test/project/main.js']);
-            fs.readFileSync.mockReturnValue(mainContent);
+            getAstFromFile.mockReturnValue({ ast, code: mainContent });
 
             const result = await analyzer.analyze();
 
@@ -140,7 +171,8 @@ describe('SecurityAnalyzer', () => {
 
     describe('Security Score Calculation', () => {
         test('calculates perfect score for secure app', async () => {
-            require('glob').sync.mockReturnValue([]);
+            require('glob').glob.mockResolvedValue([]);
+            getAstFromFile.mockReturnValue(null);
             
             const result = await analyzer.analyze();
             
@@ -148,7 +180,7 @@ describe('SecurityAnalyzer', () => {
             expect(result.summary.total).toBe(0);
         });
 
-        test('reduces score based on vulnerability severity', async () => {
+        test('reduces score based on vulnerability severity', () => {
             const vulnerabilities = {
                 critical: [{ severity: 'critical' }],
                 high: [{ severity: 'high' }, { severity: 'high' }],
@@ -158,13 +190,13 @@ describe('SecurityAnalyzer', () => {
 
             const score = analyzer.calculateSecurityScore(vulnerabilities);
             
-            // 100 - 25 (critical) - 30 (high) - 25 (medium) - 20 (low) = 0
+            // 100 - (1*25) - (2*15) - (5*5) - (10*2) = 100 - 25 - 30 - 25 - 20 = 0
             expect(score).toBe(0);
         });
     });
 
     describe('Recommendations Generation', () => {
-        test('generates appropriate recommendations', async () => {
+        test('generates appropriate recommendations', () => {
             const analysis = {
                 securityScore: 25,
                 vulnerabilities: {
