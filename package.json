@@ -1,6 +1,6 @@
 {
   "name": "electron-channel-doctor",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Advanced Script Doctor: Surgical code cleanup + Electron IPC channel management. Remove unused functions, imports, CSS classes, dead code paths with AI-powered analysis and health scoring.",
   "main": "lib/index.js",
   "bin": {
@@ -24,7 +24,7 @@
     "script-doctor",
     "unused-code",
     "dead-code",
-    "code-analysis", 
+    "code-analysis",
     "bundle-optimization",
     "health-score",
     "surgical-cleanup",
@@ -76,4 +76,4 @@
     "eslint": "^8.0.0"
   },
   "preferGlobal": true
-} 
+}
