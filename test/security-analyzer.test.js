@@ -1,8 +1,6 @@
 const { SecurityAnalyzer } = require('../lib/security-analyzer');
-const { getAstFromFile } = require('../lib/ast-parser');
 const fs = require('fs');
 const path = require('path');
-const { glob } = require('glob');
 
 // Mock modules
 jest.mock('fs', () => ({
@@ -12,7 +10,6 @@ jest.mock('fs', () => ({
     },
 }));
 jest.mock('glob');
-jest.mock('../lib/ast-parser.js');
 
 describe('SecurityAnalyzer', () => {
     let analyzer;
@@ -35,13 +32,13 @@ describe('SecurityAnalyzer', () => {
         mockFsPromises.readFile.mockResolvedValue(''); // Default mock
         require('glob').glob.mockImplementation(pattern => {
             if (analyzer.options.mainProcess.some(p => pattern.includes(p))) {
-                return Promise.resolve(analyzer.options.mainProcess);
+                return Promise.resolve(analyzer.options.mainProcess.map(f => path.join(mockProjectRoot, f)));
             }
             if (analyzer.options.preloadScripts.some(p => pattern.includes(p))) {
-                return Promise.resolve(analyzer.options.preloadScripts);
+                return Promise.resolve(analyzer.options.preloadScripts.map(f => path.join(mockProjectRoot, f)));
             }
             if (analyzer.options.rendererProcess.some(p => pattern.includes(p))) {
-                return Promise.resolve(analyzer.options.rendererProcess);
+                return Promise.resolve(analyzer.options.rendererProcess.map(f => path.join(mockProjectRoot, f)));
             }
             return Promise.resolve([]);
         });
@@ -61,9 +58,7 @@ describe('SecurityAnalyzer', () => {
                     }
                 });
             `;
-            const ast = require('@babel/parser').parse(mainContent, { sourceType: 'module' });
-
-            getAstFromFile.mockReturnValue({ ast, code: mainContent });
+            mockFsPromises.readFile.mockResolvedValue(mainContent);
 
             const result = await analyzer.analyze();
 
@@ -71,7 +66,7 @@ describe('SecurityAnalyzer', () => {
             expect(result.summary.critical).toBeGreaterThan(0);
             
             const nodeIntegrationIssue = result.vulnerabilities.critical.find(
-                v => v.type === 'insecure-nodeintegration'
+                v => v.type === 'insecure-node-integration'
             );
             expect(nodeIntegrationIssue).toBeDefined();
             expect(nodeIntegrationIssue.message).toContain('nodeIntegration enabled');
@@ -93,9 +88,7 @@ describe('SecurityAnalyzer', () => {
                     return fs.readFileSync(data.path, 'utf8');
                 });
             `;
-            const ast = require('@babel/parser').parse(mainContent, { sourceType: 'module' });
-
-            getAstFromFile.mockReturnValue({ ast, code: mainContent });
+            mockFsPromises.readFile.mockResolvedValue(mainContent);
 
             const result = await analyzer.analyze();
 
@@ -156,9 +149,7 @@ describe('SecurityAnalyzer', () => {
                     };
                 });
             `;
-            const ast = require('@babel/parser').parse(mainContent, { sourceType: 'module' });
-
-            getAstFromFile.mockReturnValue({ ast, code: mainContent });
+            mockFsPromises.readFile.mockResolvedValue(mainContent);
 
             const result = await analyzer.analyze();
 
@@ -171,8 +162,17 @@ describe('SecurityAnalyzer', () => {
 
     describe('Security Score Calculation', () => {
         test('calculates perfect score for secure app', async () => {
-            require('glob').glob.mockResolvedValue([]);
-            getAstFromFile.mockReturnValue(null);
+            const secureMain = 'const a = 1;';
+            const securePreload = `
+                const { contextBridge } = require('electron');
+                contextBridge.exposeInMainWorld('electronAPI', {});
+                const validChannels = [];
+            `;
+            mockFsPromises.readFile.mockImplementation(filePath => {
+                if (filePath.endsWith('main.js')) return Promise.resolve(secureMain);
+                if (filePath.endsWith('preload.js')) return Promise.resolve(securePreload);
+                return Promise.resolve('');
+            });
             
             const result = await analyzer.analyze();
             

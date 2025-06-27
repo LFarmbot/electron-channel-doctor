@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Planned
+- ESLint plugin for real-time validation
+- VS Code extension integration
+- TypeScript support
+- Workflow visualization
+- Auto-documentation generation
+- Framework-specific templates
+
+## [2.2.1] - 2024-05-24
+
+### Fixed
+- Resolved a series of cascading errors in the `health` command that originated from an `Invalid regular expression` bug in the complexity analysis.
+- Stabilized file scanning by converting all `glob` calls to `glob.sync` across `unused-code-detector.js`, `security-analyzer.js`, and `architecture-analyzer.js`, eliminating "path must be a string" errors.
+- Corrected faulty regex construction in the `calculateComplexity` method.
+
 ## [2.1.0] - 2024-01-15
 
 ### 🔒 Major Security Update

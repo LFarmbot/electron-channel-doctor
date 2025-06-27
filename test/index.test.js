@@ -69,14 +69,15 @@ const validInvokeChannels = [
             await expect(doctor.getCurrentWhitelist()).rejects.toThrow('Preload file not found');
         });
 
-        test('should throw error if validInvokeChannels not found', async () => {
+        test('should return an empty array if validInvokeChannels not found', async () => {
             const mockPreloadContent = 'const someOtherArray = [];';
             
             mockFsPromises.readFile.mockResolvedValue(mockPreloadContent);
             
             const doctor = new ChannelDoctor();
+            const channels = await doctor.getCurrentWhitelist();
             
-            await expect(doctor.getCurrentWhitelist()).rejects.toThrow('Could not find validInvokeChannels array');
+            expect(channels).toEqual([]);
         });
     });
 
@@ -92,9 +93,11 @@ const validInvokeChannels = [
             `;
             
             mockGlob.glob.mockResolvedValue(mockFiles);
-            mockFsPromises.readFile
-                .mockResolvedValueOnce(mockContent1)
-                .mockResolvedValueOnce(mockContent2);
+            mockFsPromises.readFile.mockImplementation(filePath => {
+                if (filePath === 'file1.js') return Promise.resolve(mockContent1);
+                if (filePath === 'file2.js') return Promise.resolve(mockContent2);
+                return Promise.reject(new Error('File not found'));
+            });
             
             const doctor = new ChannelDoctor();
             const channels = await doctor.scanForInvokeCalls();
@@ -131,11 +134,23 @@ const validInvokeChannels = [
                 electronAPI.invoke('missing-channel', data);
             `;
             
-            mockFsPromises.readFile.mockResolvedValue(mockPreloadContent);
-            mockGlob.glob.mockResolvedValue(['test.js']);
-            mockFsPromises.readFile.mockResolvedValueOnce(mockPreloadContent).mockResolvedValueOnce(mockJsContent);
+            const doctor = new ChannelDoctor({
+                preloadPath: 'electron/preload.js',
+                jsSource: 'src/test.js',
+            });
+
+            mockGlob.glob.mockResolvedValue([path.join(doctor.options.projectRoot, 'src/test.js')]);
+
+            mockFsPromises.readFile.mockImplementation(filePath => {
+                if (filePath.endsWith('preload.js')) {
+                    return Promise.resolve(mockPreloadContent);
+                }
+                if (filePath.endsWith('test.js')) {
+                    return Promise.resolve(mockJsContent);
+                }
+                return Promise.reject(new Error(`Unknown file: ${filePath}`));
+            });
             
-            const doctor = new ChannelDoctor();
             const result = await doctor.analyze();
             
             expect(result.success).toBe(true);

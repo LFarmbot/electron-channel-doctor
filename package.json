@@ -1,6 +1,6 @@
 {
   "name": "electron-channel-doctor",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Advanced Script Doctor: Surgical code cleanup + Electron IPC channel management + Security vulnerability detection. Remove unused code, fix missing channels, and detect IPC security issues with AI-powered analysis.",
   "main": "lib/index.js",
   "bin": {
