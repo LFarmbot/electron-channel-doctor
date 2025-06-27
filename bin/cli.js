@@ -466,15 +466,44 @@ program
     .option('--css <pattern>', 'glob pattern for CSS files', '**/*.{css,scss,sass}')
     .option('--html <pattern>', 'glob pattern for HTML files', '**/*.{html,htm}')
     .option('-i, --ignore <patterns...>', 'glob patterns to ignore')
+    .option('--no-safe-mode', 'use legacy regex-based modifications (DANGEROUS!)')
     .option('--no-backup', 'skip creating backup (DANGEROUS!)')
+    .option('--no-validate-syntax', 'skip syntax validation after modifications')
+    .option('--max-changes <num>', 'maximum changes per file (default: 10)', parseInt)
+    .option('--conservative', 'use conservative mode - skip aggressive changes (default: true)')
     .option('--operations <ops>', 'comma-separated list of operations (unused-functions,unused-imports,unused-css-classes,dead-code-paths)')
     .option('-v, --verbose', 'show detailed output')
     .option('--dry-run', 'show what would be removed without making changes')
     .action(async (options) => {
+        // Display safety warnings
+        if (options.safeMode === false) {
+            console.log(chalk.red('⚠️  WARNING: Running in LEGACY MODE with regex-based modifications!'));
+            console.log(chalk.red('   This may cause syntax errors and break your code.'));
+            console.log(chalk.yellow('   Consider using safe mode (default) for AST-based modifications.\n'));
+        }
+        
+        if (!options.backup && !options.dryRun) {
+            console.log(chalk.red('⚠️  WARNING: Running WITHOUT BACKUP!'));
+            console.log(chalk.red('   You will not be able to restore your files if something goes wrong.\n'));
+        }
+        
+        if (options.validateSyntax === false) {
+            console.log(chalk.yellow('⚠️  WARNING: Syntax validation is DISABLED!'));
+            console.log(chalk.yellow('   Modifications may introduce syntax errors.\n'));
+        }
+        
         if (options.dryRun) {
             console.log(chalk.yellow('🧪 DRY RUN MODE: No files will be modified\n'));
         } else {
             console.log(chalk.blue('🏥 Script Doctor: Preparing for surgical code cleanup...\n'));
+            
+            if (options.safeMode !== false) {
+                console.log(chalk.green('🛡️  Using SAFE MODE with:'));
+                console.log(chalk.green('   ✅ AST-based modifications'));
+                console.log(chalk.green('   ✅ Syntax validation'));
+                console.log(chalk.green('   ✅ Conservative changes'));
+                console.log(chalk.green('   ✅ Automatic backups\n'));
+            }
         }
         
         const doctor = new ChannelDoctor({
@@ -489,8 +518,45 @@ program
         try {
             const operations = options.operations ? options.operations.split(',') : [];
             
-            if (options.dryRun) {
-                // Just show the analysis
+            if (options.dryRun && options.safeMode !== false) {
+                // In safe mode dry run, perform the analysis with safe surgeon
+                const surgeryOptions = {
+                    safeMode: true,
+                    dryRun: true,
+                    validateSyntax: options.validateSyntax !== false,
+                    conservative: options.conservative !== false,
+                    maxChangesPerFile: options.maxChanges || 10,
+                    operations,
+                    verbose: options.verbose
+                };
+                
+                const surgeryReport = await doctor.performCodeSurgery(surgeryOptions);
+                
+                if (surgeryReport.success === false && surgeryReport.message) {
+                    console.log(chalk.green('\n✨ No surgical intervention needed!'));
+                    console.log(surgeryReport.message);
+                    return;
+                }
+                
+                // Display what would be done
+                console.log(chalk.cyan('🔍 Safe Surgery Preview:\n'));
+                console.log(chalk.cyan('📊 Expected Results:'));
+                console.log(`   Files to be analyzed: ${surgeryReport.statistics.filesAnalyzed}`);
+                console.log(`   Files to be modified: ${surgeryReport.statistics.filesModified}`);
+                console.log(`   Syntax errors prevented: ${surgeryReport.statistics.validationsFailed}`);
+                console.log(`   Safety score: ${surgeryReport.summary.safetyScore}/100`);
+                
+                if (surgeryReport.errors && surgeryReport.errors.length > 0) {
+                    console.log(chalk.yellow('\n⚠️  Potential Issues:'));
+                    surgeryReport.errors.forEach(err => {
+                        console.log(`   - ${err.file}: ${err.error}`);
+                    });
+                }
+                
+                console.log(chalk.cyan('\n💡 Run without --dry-run to perform actual surgery'));
+                return;
+            } else if (options.dryRun) {
+                // Legacy mode dry run - just show the analysis
                 const healthReport = await doctor.performHealthCheckup();
                 
                 console.log(chalk.cyan('🔍 Issues that would be surgically removed:\n'));
@@ -513,7 +579,12 @@ program
             }
             
             const surgeryReport = await doctor.performCodeSurgery({
-                safeMode: options.backup,
+                safeMode: options.safeMode !== false,
+                dryRun: options.dryRun,
+                validateSyntax: options.validateSyntax !== false,
+                conservative: options.conservative !== false,
+                maxChangesPerFile: options.maxChanges,
+                backup: options.backup !== false,
                 operations,
                 verbose: options.verbose
             });
@@ -524,18 +595,46 @@ program
                 return;
             }
             
-            // Display results
-            console.log(chalk.green('\n🎉 Surgery completed successfully!\n'));
+            // Display results based on mode
+            if (surgeryReport.mode === 'SAFE' || surgeryReport.safety) {
+                console.log(chalk.green('\n🎉 Safe Surgery completed successfully!\n'));
+                
+                console.log(chalk.cyan('📊 Surgery Statistics:'));
+                console.log(`   Files Analyzed: ${surgeryReport.statistics.filesAnalyzed}`);
+                console.log(`   Files Modified: ${surgeryReport.statistics.filesModified}`);
+                console.log(`   Files Skipped: ${surgeryReport.statistics.filesSkipped}`);
+                console.log(`   Modifications Successful: ${surgeryReport.statistics.modificationsSuccessful}`);
+                console.log(`   Syntax Errors Prevented: ${surgeryReport.statistics.validationsFailed}`);
+                console.log(`   Safety Score: ${surgeryReport.summary.safetyScore}/100`);
+                
+                if (surgeryReport.errors && surgeryReport.errors.length > 0) {
+                    console.log(chalk.yellow('\n⚠️  Issues Encountered:'));
+                    surgeryReport.errors.slice(0, 5).forEach(err => {
+                        console.log(`   - ${err.file}: ${err.error}`);
+                    });
+                    if (surgeryReport.errors.length > 5) {
+                        console.log(`   ... and ${surgeryReport.errors.length - 5} more`);
+                    }
+                }
+            } else {
+                // Legacy mode results
+                console.log(chalk.green('\n🎉 Surgery completed!\n'));
+                
+                console.log(chalk.cyan('📊 Surgery Statistics:'));
+                console.log(`   Files Modified: ${surgeryReport.summary.totalFilesModified}`);
+                console.log(`   Lines Removed: ${surgeryReport.summary.totalLinesRemoved}`);
+                console.log(`   Functions Removed: ${surgeryReport.statistics.functionsRemoved}`);
+                console.log(`   Imports Removed: ${surgeryReport.statistics.importsRemoved}`);
+                console.log(`   CSS Classes Removed: ${surgeryReport.statistics.cssClassesRemoved}`);
+                console.log(`   Dead Code Removed: ${surgeryReport.statistics.deadCodeRemoved}`);
+                console.log(`   Estimated Bundle Size Reduction: ${surgeryReport.summary.estimatedBundleSizeReduction}`);
+                
+                if (surgeryReport.warning) {
+                    console.log(chalk.red(`\n⚠️  ${surgeryReport.warning}`));
+                }
+            }
             
-            console.log(chalk.cyan('📊 Surgery Statistics:'));
-            console.log(`   Files Modified: ${surgeryReport.summary.totalFilesModified}`);
-            console.log(`   Lines Removed: ${surgeryReport.summary.totalLinesRemoved}`);
-            console.log(`   Functions Removed: ${surgeryReport.statistics.functionsRemoved}`);
-            console.log(`   Imports Removed: ${surgeryReport.statistics.importsRemoved}`);
-            console.log(`   CSS Classes Removed: ${surgeryReport.statistics.cssClassesRemoved}`);
-            console.log(`   Dead Code Removed: ${surgeryReport.statistics.deadCodeRemoved}`);
-            console.log(`   Estimated Bundle Size Reduction: ${surgeryReport.summary.estimatedBundleSizeReduction}`);
-            
+            // Backup information (applies to both modes)
             if (surgeryReport.backup) {
                 console.log(chalk.yellow('\n💾 Backup Information:'));
                 console.log(`   Location: ${surgeryReport.backup.location}`);
@@ -543,7 +642,7 @@ program
             }
             
             // Recommendations
-            if (surgeryReport.recommendations.length > 0) {
+            if (surgeryReport.recommendations && surgeryReport.recommendations.length > 0) {
                 console.log(chalk.cyan('\n⚠️  Post-Surgery Recommendations:'));
                 surgeryReport.recommendations.forEach(rec => {
                     const icon = rec.priority === 'high' ? '🚨' : '💡';
@@ -636,8 +735,7 @@ ${nextSteps.map((step, i) => `${i + 1}. **${step.action}**
    - ${step.description}`).join('\n\n')}
 
 ---
-*Report generated by electron-channel-doctor*
-`;
+*Report generated by electron-channel-doctor*`;
 }
 
 // Global error handler

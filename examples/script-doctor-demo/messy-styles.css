@@ -1,25 +1,7 @@
 /* This CSS file has lots of unused classes for Script Doctor to clean up */
 
 /* UNUSED CLASS - never referenced anywhere */
-.old-button {
-    background-color: #ff0000;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-}
-
 /* UNUSED CLASS - legacy component that was removed */
-.deprecated-modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    display: none;
-}
-
 /* USED CLASS - this one is actually used in the HTML */
 .loading-spinner {
     display: inline-block;
@@ -32,126 +14,35 @@
 }
 
 /* UNUSED CLASS - animation for something that doesn't exist */
-.fade-in-animation {
-    animation: fadeIn 0.5s ease-in-out;
-    opacity: 0;
-}
-
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
 }
 
 /* UNUSED CLASS - old layout that was replaced */
-.legacy-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    padding: 20px;
-}
-
 /* UNUSED CLASS - prototype styles that were never used */
-.experimental-card {
-    background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
-    border-radius: 15px;
-    padding: 30px;
-    color: white;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-}
-
 /* UNUSED CLASS - mobile-only class that was never implemented */
-.mobile-only-feature {
-    display: none;
-}
-
 @media (max-width: 768px) {
-    .mobile-only-feature {
-        display: block;
-        background: #e74c3c;
-        padding: 15px;
-        text-align: center;
     }
-}
 
 /* USED CLASS - this is referenced in the messy-code.js file */
-.spinner-icon {
-    border: 2px solid #f3f3f3;
-    border-top: 2px solid #3498db;
-    border-radius: 50%;
-    width: 16px;
-    height: 16px;
-    animation: spin 1s linear infinite;
-}
-
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
 /* UNUSED CLASS - test styles that were never cleaned up */
-.debug-border {
-    border: 2px solid red !important;
-}
-
-.debug-background {
-    background: yellow !important;
-}
-
 /* UNUSED CLASS - features that were planned but never built */
-.future-feature-container {
-    position: relative;
-    overflow: hidden;
-}
-
-.future-feature-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 /* UNUSED CLASS - old theme colors */
-.theme-dark-purple {
-    background: #2c1810;
-    color: #e6ddd4;
-}
-
-.theme-light-blue {
-    background: #f0f8ff;
-    color: #191970;
-}
-
 /* UNUSED CLASS - complex responsive layout that was never used */
-.unused-responsive-layout {
-    display: flex;
-    flex-wrap: wrap;
-}
-
 @media (min-width: 576px) {
-    .unused-responsive-layout {
-        flex-direction: row;
     }
-}
 
 @media (min-width: 768px) {
-    .unused-responsive-layout {
-        justify-content: space-between;
     }
-}
 
 @media (min-width: 992px) {
-    .unused-responsive-layout {
-        align-items: center;
     }
-}
 
 @media (min-width: 1200px) {
-    .unused-responsive-layout {
-        padding: 40px;
-    }
-} 
+    } 

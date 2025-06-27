@@ -122,6 +122,80 @@ electron-channel-doctor surgery --no-backup
 electron-channel-doctor surgery --verbose
 ```
 
+### **🛡️ NEW: Safe Mode vs Legacy Mode**
+
+**Version 2.3.0+ introduces Safe Mode** - a complete rewrite of the code modification engine that uses **AST-based transformations** instead of regex patterns.
+
+#### **Safe Mode (Default - Recommended)**
+```bash
+# Safe mode is ON by default
+electron-channel-doctor surgery
+
+# Explicitly enable safe mode features
+electron-channel-doctor surgery --conservative --max-changes 10
+```
+
+**Safe Mode Features:**
+- ✅ **AST-based modifications** - Understands JavaScript syntax properly
+- ✅ **Syntax validation** - Every change is validated before saving
+- ✅ **Conservative changes** - Skips risky modifications
+- ✅ **Change limits** - Max 10 changes per file by default
+- ✅ **Detailed error reporting** - Know exactly what went wrong
+- ✅ **Safety score** - Track how safe your surgery was
+
+#### **Legacy Mode (Dangerous - Not Recommended)**
+```bash
+# ⚠️ WARNING: May break your code!
+electron-channel-doctor surgery --no-safe-mode
+
+# Disable ALL safety features (VERY DANGEROUS!)
+electron-channel-doctor surgery --no-safe-mode --no-backup --no-validate-syntax
+```
+
+**Legacy Mode Issues:**
+- ❌ **Regex-based** - Can't understand JavaScript syntax
+- ❌ **No validation** - May create syntax errors
+- ❌ **Aggressive** - Can destroy code structure
+- ❌ **No safety nets** - You're on your own
+
+**Example of Legacy Mode Destruction:**
+```javascript
+// BEFORE (Working code)
+const logger = require('../../utils/debugLogger');
+return number.toString().padStart(2, '0');
+
+// AFTER (Broken by legacy mode)
+const logger = require('../../utils/debugLogger'function showTwoDigits(number) {
+return number.toString().padStart(2, '0'}
+```
+
+#### **Safe Mode in Action**
+```bash
+$ electron-channel-doctor surgery --dry-run
+
+🏥 Script Doctor: Preparing for surgical code cleanup...
+
+🛡️  Using SAFE MODE with:
+   ✅ AST-based modifications
+   ✅ Syntax validation
+   ✅ Conservative changes
+   ✅ Automatic backups
+
+🔍 Safe Surgery Preview:
+
+📊 Expected Results:
+   Files to be analyzed: 45
+   Files to be modified: 12
+   Syntax errors prevented: 3
+   Safety score: 95/100
+
+⚠️  Potential Issues:
+   - src/utils/helpers.js: Parse error: Unexpected token (Skipping file)
+   - src/legacy/old-code.js: Too many changes needed (15 > 10 limit)
+
+💡 Run without --dry-run to perform actual surgery
+```
+
 **Example Surgery Output:**
 ```
 🏥 Script Doctor: Preparing for surgical code cleanup...
@@ -441,6 +515,7 @@ const {
   ChannelDoctor, 
   UnusedCodeDetector, 
   CodeSurgeon,
+  SafeCodeSurgeon,  // NEW: AST-based safe surgeon
   SecurityAnalyzer,
   checkHealth,
   performSurgery,
@@ -456,14 +531,38 @@ const healthReport = await checkHealth({
 
 console.log(`Health Score: ${healthReport.healthScore}/100`);
 
-// Perform surgery
+// Perform surgery (uses Safe Mode by default)
 if (healthReport.healthScore < 70) {
   const surgeryReport = await performSurgery({
-    safeMode: true, // Create backups
+    safeMode: true, // Default: true
+    validateSyntax: true, // Default: true
+    conservative: true, // Default: true
+    maxChangesPerFile: 10, // Default: 10
     operations: ['unused-functions', 'unused-imports']
   });
   
   console.log(`Removed ${surgeryReport.summary.totalLinesRemoved} lines`);
+  console.log(`Safety score: ${surgeryReport.summary.safetyScore}/100`);
+}
+
+// Direct usage of SafeCodeSurgeon (NEW)
+const safeSurgeon = new SafeCodeSurgeon({
+  projectRoot: process.cwd(),
+  dryRun: false,
+  validateSyntax: true,
+  conservative: true,
+  maxChangesPerFile: 5,
+  verbose: true
+});
+
+const analysisReport = await doctor.performHealthCheckup();
+const safeReport = await safeSurgeon.performSafeSurgery(analysisReport);
+
+if (safeReport.errors.length > 0) {
+  console.error('Some files could not be safely modified:');
+  safeReport.errors.forEach(err => {
+    console.error(`- ${err.file}: ${err.error}`);
+  });
 }
 
 // Security analysis
@@ -477,14 +576,20 @@ if (securityReport.summary.critical > 0) {
   process.exit(1);
 }
 
-// Advanced usage
+// Advanced usage with custom configuration
 const doctor = new ChannelDoctor({
   jsPattern: 'src/**/*.{js,tsx}',
   verbose: true
 });
 
 const analysis = await doctor.performHealthCheckup();
-const surgery = await doctor.performCodeSurgery();
+
+// Choose between safe and legacy surgery
+const surgery = await doctor.performCodeSurgery({
+  safeMode: true, // Use AST-based safe mode (recommended)
+  // safeMode: false, // Use regex-based legacy mode (dangerous)
+});
+
 const security = await doctor.analyzeSecurityVulnerabilities();
 ```
 
@@ -522,6 +627,150 @@ const security = await doctor.analyzeSecurityVulnerabilities();
 - 🔍 **Cross-file analysis** - tracks usage across your entire codebase
 - 🛡️ **False positive prevention** - conservative approach to avoid breaking code
 - 📝 **Infrastructure preservation** - keeps essential utility functions
+
+---
+
+## 👩‍💻 **For Developers: Architecture & Testing**
+
+### **Dependency Injection Pattern**
+
+As of version 2.2.1, Electron Channel Doctor uses a dependency injection pattern for file system operations, making it highly testable and maintainable:
+
+```javascript
+const { ChannelDoctor, FileSystem, MockFileSystem } = require('electron-channel-doctor');
+
+// Production usage (uses real file system)
+const doctor = new ChannelDoctor({
+  projectRoot: '/path/to/project',
+  jsPattern: 'src/**/*.js'
+});
+
+// Testing usage (uses mock file system)
+const mockFiles = {
+  '/test/project/src/app.js': `electronAPI.invoke('test-channel');`,
+  '/test/project/electron/preload.js': `const validInvokeChannels = ['test-channel'];`
+};
+
+const testDoctor = new ChannelDoctor({
+  projectRoot: '/test/project',
+  fs: new MockFileSystem(mockFiles)  // Inject mock file system
+});
+```
+
+### **FileSystem Abstraction**
+
+```javascript
+// Real file system (default)
+const fs = new FileSystem();
+await fs.readFile('/path/to/file.js');
+const files = fs.findFiles('src/**/*.js', '/project/root', ['node_modules/**']);
+
+// Mock file system (for testing)
+const mockFs = new MockFileSystem({
+  '/project/src/app.js': 'console.log("Hello World");',
+  '/project/src/utils.js': 'export const helper = () => {};'
+});
+await mockFs.readFile('/project/src/app.js'); // Returns mock content
+const files = mockFs.findFiles('src/**/*.js', '/project'); // Returns matching mock files
+```
+
+### **Advanced API Usage with Dependency Injection**
+
+```javascript
+const { 
+  ChannelDoctor, 
+  SecurityAnalyzer, 
+  UnusedCodeDetector,
+  MockFileSystem 
+} = require('electron-channel-doctor');
+
+// Create custom file system for testing
+const mockFiles = {
+  '/project/main.js': `
+    const { BrowserWindow } = require('electron');
+    const win = new BrowserWindow({
+      webPreferences: { nodeIntegration: true } // Security issue!
+    });
+  `,
+  '/project/src/app.js': `
+    electronAPI.invoke('get-user-data');
+    electronAPI.invoke('missing-channel');
+  `,
+  '/project/electron/preload.js': `
+    const { contextBridge } = require('electron');
+    const validInvokeChannels = ['get-user-data'];
+  `
+};
+
+// All analyzers support dependency injection
+const mockFs = new MockFileSystem(mockFiles);
+
+const channelAnalysis = await new ChannelDoctor({
+  projectRoot: '/project',
+  fs: mockFs
+}).analyze();
+
+const securityAnalysis = await new SecurityAnalyzer({
+  projectRoot: '/project',
+  fs: mockFs
+}).analyze();
+
+const unusedCodeAnalysis = await new UnusedCodeDetector({
+  projectRoot: '/project', 
+  fs: mockFs
+}).analyzeProject();
+```
+
+### **Testing Your Own Extensions**
+
+If you're building on top of Electron Channel Doctor, you can easily test your extensions:
+
+```javascript
+// test/my-extension.test.js
+const { MockFileSystem } = require('electron-channel-doctor');
+
+describe('My Extension', () => {
+  test('should detect custom patterns', async () => {
+    const mockFiles = {
+      '/project/custom.js': 'myCustomAPI.call("test");'
+    };
+    
+    const mockFs = new MockFileSystem(mockFiles);
+    const result = await myExtension.analyze({
+      projectRoot: '/project',
+      fs: mockFs  // Use mock instead of real file system
+    });
+    
+    expect(result.patterns).toContain('test');
+  });
+});
+```
+
+### **MockFileSystem Features**
+
+The `MockFileSystem` class provides comprehensive file system mocking:
+
+- **Glob Pattern Support**: Handles `**/*.js`, `src/**/*.{js,ts}`, etc.
+- **Path Resolution**: Correctly resolves relative and absolute paths
+- **File Reading**: Returns mock content for specified files
+- **Directory Traversal**: Simulates real directory structures
+- **Error Simulation**: Can simulate file not found and permission errors
+
+```javascript
+const mockFs = new MockFileSystem({
+  '/project/src/app.js': 'console.log("app");',
+  '/project/src/utils/helper.js': 'export const help = () => {};',
+  '/project/test/app.test.js': 'describe("app", () => {});'
+});
+
+// Supports complex glob patterns
+const jsFiles = mockFs.findFiles('src/**/*.js', '/project');
+// Returns: ['/project/src/app.js', '/project/src/utils/helper.js']
+
+const allFiles = mockFs.findFiles('**/*.{js,ts}', '/project', ['test/**']);
+// Returns: ['/project/src/app.js', '/project/src/utils/helper.js']
+// (excludes test directory)
+```
 
 ---
 

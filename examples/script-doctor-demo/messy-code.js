@@ -1,12 +1,12 @@
 // This is a messy file with LOTS of issues for Script Doctor to find and fix!
 
-import React from 'react'; // UNUSED IMPORT - never used anywhere
+ // UNUSED IMPORT - never used anywhere
 import { useState, useEffect } from 'react'; // PARTIALLY UNUSED - useState used, useEffect not
 import moment from 'moment'; // UNUSED IMPORT - imported but never called
-import { debounce, throttle, merge } from 'lodash'; // MIXED USAGE - only debounce used
+ // MIXED USAGE - only debounce used
 
 const fs = require('fs'); // UNUSED IMPORT - CommonJS style, never used
-const { join, resolve, dirname } = require('path'); // PARTIALLY UNUSED - only join used
+ // PARTIALLY UNUSED - only join used
 
 // UNUSED FUNCTION - never called anywhere
 function calculateTax(amount, rate = 0.1) {
@@ -19,10 +19,7 @@ function formatCurrency(value) {
 }
 
 // UNUSED ARROW FUNCTION - created but never used
-const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-};
+;
 
 // COMPLEX FUNCTION - high cyclomatic complexity (>10)
 function processUserData(user, settings, permissions, context, flags) {
@@ -63,9 +60,7 @@ function getUserInfo(userId) {
     const user = database.getUser(userId);
     return user;
     
-    // DEAD CODE - unreachable after return
-    console.log('This will never execute');
-    const extraData = fetchExtraData(userId);
+    // DEAD CODE - unreachable after returnconst extraData = fetchExtraData(userId);
     return { ...user, ...extraData };
 }
 
@@ -74,9 +69,7 @@ function validateConfig(config) {
     if (!config) {
         throw new Error('Config is required');
         
-        // DEAD CODE - unreachable after throw
-        console.log('Validating config...');
-        const defaultConfig = getDefaultConfig();
+        // DEAD CODE - unreachable after throwconst defaultConfig = getDefaultConfig();
     }
     
     return config;

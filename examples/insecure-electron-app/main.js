@@ -39,8 +39,7 @@ ipcMain.handle('execute-command', async (event, command) => {
     // No validation - allows arbitrary command execution!
     return new Promise((resolve, reject) => {
         exec(command, (error, stdout, stderr) => {
-            if (error) reject(error);
-            else resolve({ stdout, stderr });
+            if (error) reject(error);});
         });
     });
 });
