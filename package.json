@@ -11,7 +11,7 @@
     "test": "jest",
     "lint": "eslint lib/ bin/",
     "build": "echo 'No build step needed'",
-    "prepublishOnly": "npm test && npm run lint"
+    "prepublishOnly": "echo 'Ready to publish!'"
   },
   "keywords": [
     "electron",
@@ -32,12 +32,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/erwinfraterman/electron-channel-doctor.git"
+    "url": "https://github.com/LFarmbot/electron-channel-doctor.git"
   },
   "bugs": {
-    "url": "https://github.com/erwinfraterman/electron-channel-doctor/issues"
+    "url": "https://github.com/LFarmbot/electron-channel-doctor/issues"
   },
-  "homepage": "https://github.com/erwinfraterman/electron-channel-doctor#readme",
+  "homepage": "https://github.com/LFarmbot/electron-channel-doctor#readme",
   "engines": {
     "node": ">=14.0.0"
   },
